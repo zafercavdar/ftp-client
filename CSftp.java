@@ -1,6 +1,38 @@
 import org.apache.commons.net.ftp.FTPClient;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class CSftp {
+
+  public static FTPClient ftpClient = null;
+
+  public static void user(String username) {
+
+  }
+
+  public static void pw(String password) {
+
+  }
+
+  public static void quit() {
+
+  }
+
+  public static void get(String remote) {
+
+  }
+
+  public static void features() {
+
+  }
+
+  public static void cd(String directory) {
+
+  }
+
+  public static void dir() {
+
+  }
 
 	public static void main(String[] args) {
     if (args.length ==  0) {
@@ -13,13 +45,66 @@ public class CSftp {
         port = Integer.parseInt(args[1]);
       }
       System.out.println("Trying connect to host " + host + " at port: " + port);
-      FTPClient ftpClient = new FTPClient();
       try {
-        ftpClient.connect(host, port);
+        //ftpClient = new FTPClient();
+        //ftpClient.connect(host, port);
+        System.out.println("Successfully connected.");
+
+        BufferedReader rd = new BufferedReader(new InputStreamReader(System.in));
+
+        while(true) {
+          System.out.print("csftp> ");
+          String input = rd.readLine();
+          String[] userArgs = input.split("\\s{1,}");
+          if (userArgs.length == 0) {
+            System.out.println("0x001 Invalid command.");
+            continue;
+          } else {
+            if (userArgs.length > 2) {
+              System.out.println("0x002 Incorrect number of arguments.");
+              continue;
+            } else {
+              String command = userArgs[0];
+              String param = null;
+              boolean hasParam = (userArgs.length == 2);
+              if (hasParam) {
+                param = userArgs[1];
+              }
+              if (command.equals("quit") || command.equals("features") || command.equals("dir")) {
+                if (hasParam) {
+                  System.out.println("0x002 Incorrect number of arguments.");
+                  continue;
+                }
+              }
+              if (command.equals("user") || command.equals("pw") ||
+                      command.equals("get") || command.equals("cd")) {
+                if (!hasParam) {
+                  System.out.println("0x002 Incorrect number of arguments.");
+                  continue;
+                }
+              }
+
+              switch(command) {
+                case "quit":  quit(); break;
+                case "features": features(); break;
+                case "dir": dir(); break;
+                case "user": user(param); break;
+                case "pw": pw(param); break;
+                case "get": get(param); break;
+                case "cd": cd(param); break;
+                default: System.out.println("0x001 Invalid command."); break;
+              }
+
+              if (command.equals("quit")) {
+                break;
+              }
+            }
+          }
+        }
+
       } catch (Exception e) {
         e.printStackTrace(System.out);
       }
-      //System.out.println(connectionResponse);
     }
 	}
 }
