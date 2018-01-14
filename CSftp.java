@@ -7,30 +7,41 @@ public class CSftp {
   public static FTPClient ftpClient = null;
 
   public static void user(String username) {
-
+    System.out.println("--> USER " + username);
+    // run command by FTPClient.sendCommand(FTPCmd.USER, username)
+    // get result by ftpClient.getReplyString()
+    // print results with "<-- " prefix
   }
 
   public static void pw(String password) {
+    System.out.println("--> PASS " + password);
 
   }
 
   public static void quit() {
+    System.out.println("--> QUIT");
 
   }
 
   public static void get(String remote) {
+    System.out.println("--> PASV" + remote);
+    System.out.println("--> RETR" + remote);
 
   }
 
   public static void features() {
+    System.out.println("--> FEAT");
 
   }
 
   public static void cd(String directory) {
+    System.out.println("--> CWD" + directory);
 
   }
 
   public static void dir() {
+    System.out.println("--> PASV");
+    System.out.println("--> LIST");
 
   }
 
