@@ -36,18 +36,18 @@ public class CSftp {
 
 	public static void main(String[] args) {
     if (args.length ==  0) {
-      System.out.println("Insufficient command line arguments. Exiting ...");
+      System.err.println("Insufficient command line arguments. Exiting ...");
       System.exit(0);
     } else {
-      String host = args[0];
+      String address = args[0];
       int port = 21;
       if (args.length > 1) {
         port = Integer.parseInt(args[1]);
       }
-      System.out.println("Trying connect to host " + host + " at port: " + port);
+      System.out.println("Trying connect to address " + address + " at port: " + port);
       try {
         //ftpClient = new FTPClient();
-        //ftpClient.connect(host, port);
+        //ftpClient.connect(address, port);
         System.out.println("Successfully connected.");
 
         BufferedReader rd = new BufferedReader(new InputStreamReader(System.in));
@@ -57,12 +57,10 @@ public class CSftp {
           String input = rd.readLine();
           String[] userArgs = input.split("\\s{1,}");
           if (userArgs.length == 0) {
-            System.out.println("0x001 Invalid command.");
-            continue;
+            System.err.println("0x001 Invalid command.");
           } else {
             if (userArgs.length > 2) {
-              System.out.println("0x002 Incorrect number of arguments.");
-              continue;
+              System.err.println("0x002 Incorrect number of arguments.");
             } else {
               String command = userArgs[0];
               String param = null;
@@ -72,14 +70,14 @@ public class CSftp {
               }
               if (command.equals("quit") || command.equals("features") || command.equals("dir")) {
                 if (hasParam) {
-                  System.out.println("0x002 Incorrect number of arguments.");
+                  System.err.println("0x002 Incorrect number of arguments.");
                   continue;
                 }
               }
               if (command.equals("user") || command.equals("pw") ||
                       command.equals("get") || command.equals("cd")) {
                 if (!hasParam) {
-                  System.out.println("0x002 Incorrect number of arguments.");
+                  System.err.println("0x002 Incorrect number of arguments.");
                   continue;
                 }
               }
@@ -92,7 +90,7 @@ public class CSftp {
                 case "pw": pw(param); break;
                 case "get": get(param); break;
                 case "cd": cd(param); break;
-                default: System.out.println("0x001 Invalid command."); break;
+                default: System.err.println("0x001 Invalid command."); break;
               }
 
               if (command.equals("quit")) {
@@ -101,6 +99,7 @@ public class CSftp {
             }
           }
         }
+        rd.close();
 
       } catch (Exception e) {
         e.printStackTrace(System.out);
