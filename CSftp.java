@@ -1,15 +1,10 @@
-import org.apache.commons.net.ftp.FTPClient;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 public class CSftp {
 
-  public static FTPClient ftpClient = null;
-
   public static void user(String username) {
     System.out.println("--> USER " + username);
-    // run command by FTPClient.sendCommand(FTPCmd.USER, username)
-    // get result by ftpClient.getReplyString()
     // print results with "<-- " prefix
   }
 
