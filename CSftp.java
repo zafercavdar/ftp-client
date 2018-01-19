@@ -32,6 +32,13 @@ public class CSftp {
     }
   }
 
+  // Print array with prefix
+  public static void printArray(String[] arr, String prefix) {
+    for(int i = 0; i < arr.length; i++) {
+      String line = arr[i];
+      System.out.println(prefix + line);
+    }
+  }
 
   /*
     This method sends commands to server and returns the response with proper prints.
@@ -41,25 +48,15 @@ public class CSftp {
     write(message);
     String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
 
-    for(int i = 0; i < controlConnectionResponse.length; i++) {
-      String line = controlConnectionResponse[i];
-      System.out.println("<-- " + line);
-    }
-
+    printArray(controlConnectionResponse, "<-- ");
 
     if (readFrom == ConnectionType.DATACONNECTION) {
       String[] dataConnectionResponse = read(readFrom);
-      for(int i = 0; i < dataConnectionResponse.length; i++) {
-        String line = dataConnectionResponse[i];
-        System.out.println(line);
-      }
+      printArray(dataConnectionResponse, "");
 
       // read once control connection again to get final message
       controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
-      for(int i = 0; i < controlConnectionResponse.length; i++) {
-        String line = controlConnectionResponse[i];
-        System.out.println("<-- " + line);
-      }
+      printArray(controlConnectionResponse, "<-- ");
     }
 
     return controlConnectionResponse;
