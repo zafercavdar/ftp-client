@@ -1,66 +1,157 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+import java.io.IOException;
 
 public class CSftp {
 
-  public static void user(String username) {
-    System.out.println("--> USER " + username);
-    // print results with "<-- " prefix
+  public static BufferedReader ftpReader = null;
+  public static BufferedWriter ftpWriter = null;
+  public static Socket socket = null;
+
+
+  /*
+    This method sends commands to server and returns the response with proper prints.
+  */
+  public static void communicate(String message) throws IOException{
+    System.out.println("--> " + message);
+    write(message);
+    String response = read();
+    System.out.println("<-- " + response);
   }
 
-  public static void pw(String password) {
-    System.out.println("--> PASS " + password);
 
+  //  Client commands
+  public static void user(String username) throws IOException {
+    String message = "USER " + username;
+    communicate(message);
   }
 
-  public static void quit() {
-    System.out.println("--> QUIT");
+  public static void pw(String password) throws IOException {
+    String message = "PASS " + password;
+    communicate(message);
+  }
 
+  public static void quit() throws IOException {
+    String message = "QUIT";
+    communicate(message);
+    socket.close();
+    System.exit(0);
   }
 
   public static void get(String remote) {
-    System.out.println("--> PASV" + remote);
-    System.out.println("--> RETR" + remote);
+    String message = "PASV " + remote;
+    String message2 = "RETR " + remote;
 
   }
 
   public static void features() {
-    System.out.println("--> FEAT");
+    String message = "FEAT";
 
   }
 
   public static void cd(String directory) {
-    System.out.println("--> CWD" + directory);
+    String message = "CWD " + directory;
 
   }
 
   public static void dir() {
-    System.out.println("--> PASV");
-    System.out.println("--> LIST");
+    String message = "PASV ";
+    String message2 = "LIST ";
 
   }
 
+
+  /*
+    This method reads from FTP server and exits if there is a I/O Error
+  */
+
+  public static String read() throws IOException {
+    try {
+      String response = ftpReader.readLine();
+      return response;
+    }catch (IOException e) {
+      System.out.println("0xFFFD Control connection I/O error, closing control connection");
+      socket.close();
+      System.exit(1);
+      return null;
+    }
+  }
+
+
+  /*
+    This method writes to FTP server and exits if there is a I/O Error
+  */
+
+  public static void write(String message) throws IOException {
+      try {
+        ftpWriter.write(message + "\n");
+        ftpWriter.flush();
+      }catch (IOException e) {
+        System.out.println("0xFFFD Control connection I/O error, closing control connection");
+        socket.close();
+        System.exit(1);
+      }
+  }
+
+
+  /*
+    This method creates Socket connection, ftpReader, ftpWriter and checks if the connection is successful or not.
+  */
+
+  public static boolean connect(String server, int port) {
+    try {
+      socket = new Socket(server, port);
+      ftpReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+      ftpWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+      String response = read();
+      System.out.println(response);
+      return response.substring(0,3).equals("220");
+    } catch (Exception e) {
+      System.out.println("0xFFFC Control connection to " + server + " on port " + port + " failed to open.");
+      System.exit(1);
+      return false;
+    }
+  }
+
+
+  /*
+    Parse arguments, get user inputs and call corresponding method.
+  */
 	public static void main(String[] args) {
     if (args.length ==  0) {
       System.err.println("Insufficient command line arguments. Exiting ...");
-      System.exit(0);
+      System.exit(1);
     } else {
       String address = args[0];
       int port = 21;
       if (args.length > 1) {
         port = Integer.parseInt(args[1]);
       }
-      System.out.println("Trying connect to address " + address + " at port: " + port);
+      System.out.println("Trying to connect to server " + address + " at port " + port);
       try {
-        //ftpClient = new FTPClient();
-        //ftpClient.connect(address, port);
-        System.out.println("Successfully connected.");
+        boolean connected = connect(address, port);
+        if (connected) {
+          System.out.println("Successfully connected.");
+        } else {
+          System.exit(1);
+        }
 
-        BufferedReader rd = new BufferedReader(new InputStreamReader(System.in));
+        BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
 
         while(true) {
           System.out.print("csftp> ");
-          String input = rd.readLine();
+
+          String input = null;
+          try {
+              input = consoleReader.readLine();
+          } catch (IOException e) {
+            System.out.println("0xFFFE Input error while reading commands, terminating.");
+            break;
+          }
+
           String[] userArgs = input.split("\\s{1,}");
           if (userArgs.length == 0) {
             System.err.println("0x001 Invalid command.");
@@ -105,7 +196,7 @@ public class CSftp {
             }
           }
         }
-        rd.close();
+        consoleReader.close();
 
       } catch (Exception e) {
         e.printStackTrace(System.out);
