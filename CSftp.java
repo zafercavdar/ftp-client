@@ -54,7 +54,7 @@ public class CSftp {
       String[] dataConnectionResponse = read(readFrom);
       printArray(dataConnectionResponse, "");
 
-      // read once control connection again to get final message
+      // read control connection once again to get final message
       controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
       printArray(controlConnectionResponse, "<-- ");
     }
