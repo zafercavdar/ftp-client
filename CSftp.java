@@ -273,21 +273,21 @@ public class CSftp {
           }
 
           // Parse user provided command
-          String[] userCommand = input.split("\\s{1,}");
+          String[] splittedInput = input.split("\\s{1,}");
 
-          if (userCommand.length == 0) {
+          if (splittedInput.length == 0) {
             System.err.println("0x001 Invalid command.");
           } else {
-            if (userCommand.length > 2) {
+            if (splittedInput.length > 2) {
               // We should have 1 command and may have at max 1 argument.
               System.err.println("0x002 Incorrect number of arguments.");
             } else {
-              // userCommand.length equals to 1 or 2
-              String command = userCommand[0];
+              // splittedInput.length equals to 1 or 2
+              String command = splittedInput[0];
               String param = null;
-              boolean hasParam = (userCommand.length == 2);
+              boolean hasParam = (splittedInput.length == 2);
               if (hasParam) {
-                param = userCommand[1];
+                param = splittedInput[1];
               }
               if (command.equals("quit") || command.equals("features") || command.equals("dir")) {
                 if (hasParam) {
