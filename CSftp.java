@@ -2,9 +2,12 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.BufferedInputStream;
 import java.net.Socket;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.io.FileOutputStream;
+import java.io.File;
 
 public class CSftp {
 
@@ -65,25 +68,28 @@ public class CSftp {
   // PASSIVE Mode
   public static void passiveMode() throws IOException {
     String message = "PASV ";
-    String response = communicate(ConnectionType.CONTROLCONNECTION, message)[0];
-    int s = response.indexOf("(") + 1;
-    int f = response.indexOf(")");
-    String IPWithPort = response.substring(s, f);
-    String[] octatList = IPWithPort.split(",");
-    String IPAddress = "";
-    int port = 0;
-    for (int i = 0; i < octatList.length; i++) {
-      if (i < 3) {
-        IPAddress += octatList[i] + ".";
-      } else if (i == 3) {
-        IPAddress += octatList[i];
-      } else if (i == 4) {
-        port += 256 * Integer.parseInt(octatList[i]);
-      } else if (i == 5) {
-        port += Integer.parseInt(octatList[i]);
+    String[] responseArray = communicate(ConnectionType.CONTROLCONNECTION, message);
+    if (responseArray.length > 0) {
+      String response = responseArray[0];
+      int s = response.indexOf("(") + 1;
+      int f = response.indexOf(")");
+      String IPWithPort = response.substring(s, f);
+      String[] octatList = IPWithPort.split(",");
+      String IPAddress = "";
+      int port = 0;
+      for (int i = 0; i < octatList.length; i++) {
+        if (i < 3) {
+          IPAddress += octatList[i] + ".";
+        } else if (i == 3) {
+          IPAddress += octatList[i];
+        } else if (i == 4) {
+          port += 256 * Integer.parseInt(octatList[i]);
+        } else if (i == 5) {
+          port += Integer.parseInt(octatList[i]);
+        }
       }
+      dataConnection(IPAddress, port);
     }
-    dataConnection(IPAddress, port);
   }
 
 
@@ -125,9 +131,17 @@ public class CSftp {
   public static void get(String remote) throws IOException {
     passiveMode();
     String message = "RETR " + remote;
-    // TO DO save the file
-    communicate(ConnectionType.DATACONNECTION, message);
-
+    System.out.println("--> " + message);
+    write(message);
+    String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
+    printArray(controlConnectionResponse, "<-- ");
+    if (controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,1).equals("5")) {
+      System.out.println("0x3A7 Data transfer connection I/O error, closing data connection.");
+    } else {
+      downloadAndSaveFile(remote);
+      controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
+      printArray(controlConnectionResponse, "<-- ");
+    }
   }
 
 
@@ -174,11 +188,37 @@ public class CSftp {
       }
       return result;
     }catch (IOException e) {
+      e.printStackTrace(System.out);
       System.out.println(errorMessage);
-      closeSockets();
-      System.exit(1);
+      if (connectionType == ConnectionType.DATACONNECTION) {
+        dataSocket.close();
+      } else {
+        closeSockets();
+        System.exit(1);
+      }
       return null;
     }
+  }
+
+  /*
+    Savefile
+  */
+  public static void downloadAndSaveFile(String fileName) {
+      try {
+        int bytesRead = 0;
+        byte[] fileContent = new byte[65536];
+        BufferedInputStream binStream = new BufferedInputStream(dataSocket.getInputStream());
+        FileOutputStream ftpFile = new FileOutputStream(new File(fileName).getName());
+
+        while((bytesRead = binStream.read(fileContent, 0, 65536)) != -1) {
+          ftpFile.write(fileContent, 0, bytesRead);
+        }
+        ftpFile.close();
+        binStream.close();
+      } catch (IOException e) {
+        System.out.println("0xFFFF Processing error. " + e.getMessage());
+      }
+
   }
 
 
