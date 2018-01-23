@@ -176,15 +176,23 @@ public class CSftp {
     try {
       // Store each line in an array list
       ArrayList<String> response = new ArrayList<String>();
+
       while(true) {
         String line = null;
-        line = reader.readLine();
-        response.add(line);
-        try {
-          Thread.sleep(15);
-        } catch (InterruptedException e) {
-          System.out.println(e.getMessage());
+
+        if (connectionType==ConnectionType.CONTROLCONNECTION) {
+          do {
+            line = reader.readLine();
+            response.add(line);
+          } while (!(line.matches("\\d\\d\\d\\s.*")));
+        } else {
+          do {
+            line = reader.readLine();
+            if (line!=null)
+              response.add(line);
+          } while (line!=null);
         }
+
         if (!reader.ready()) {
           break;
         }
