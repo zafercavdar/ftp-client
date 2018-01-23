@@ -4,7 +4,7 @@ CSftp.jar: CSftp.java
 	jar cvfe CSftp.jar CSftp *.class
 
 run: CSftp.jar
-	java -jar CSftp.jar speedtest.tele2.net 21
+	java -jar CSftp.jar speedtest.tele2.net
 
 clean:
 	rm -f *.class

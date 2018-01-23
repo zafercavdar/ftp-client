@@ -22,16 +22,22 @@ public class CSftp {
     DATACONNECTION, CONTROLCONNECTION
   }
 
-  /*
-    Closes established connections
-  */
-
-  public static void closeSockets() throws IOException {
+  // Closes established connections, readers and writers
+  public static void closeAll() throws IOException {
     if (controlSocket != null) {
       controlSocket.close();
     }
     if (dataSocket != null) {
       dataSocket.close();
+    }
+    if (controlReader != null) {
+        controlReader.close();
+    }
+    if (controlWriter != null) {
+        controlWriter.close();
+    }
+    if (dataReader != null) {
+        dataReader.close();
     }
   }
 
@@ -44,7 +50,7 @@ public class CSftp {
   }
 
   /*
-    This method sends commands to server and returns the response with proper prints.
+    This method sends commands to server, prints and returns the response.
   */
   public static String[] communicate(ConnectionType readFrom, String message) throws IOException{
     System.out.println("--> " + message);
@@ -90,7 +96,7 @@ public class CSftp {
       dataConnection(IPAddress, port);
       return true;
     } else {
-      System.out.println("0xFFFF Processing error. Response does not contain IP Address.");
+      System.out.println("0xFFFF Processing error. Passive mode failed. Response does not contain IP address.");
       return false;
     }
   }
@@ -110,8 +116,7 @@ public class CSftp {
   public static void quit() throws IOException {
     String message = "QUIT";
     communicate(ConnectionType.CONTROLCONNECTION, message);
-    closeSockets();
-    System.exit(0);
+    closeAll();
   }
 
   public static void features() throws IOException {
@@ -141,8 +146,8 @@ public class CSftp {
       write(message);
       String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
       printArray(controlConnectionResponse, "<-- ");
-      if (controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,1).equals("5")) {
-        System.out.println("0x3A7 Data transfer connection I/O error, closing data connection.");
+      if (controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,3).equals("550")) {
+        System.out.println("0x38E Access to local file " + remote + " denied.");
       } else {
         downloadAndSaveFile(remote);
         controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
@@ -176,46 +181,39 @@ public class CSftp {
     try {
       // Store each line in an array list
       ArrayList<String> response = new ArrayList<String>();
+      String line = null;
 
-      while(true) {
-        String line = null;
-
-        if (connectionType==ConnectionType.CONTROLCONNECTION) {
-          do {
-            line = reader.readLine();
+      if (connectionType==ConnectionType.CONTROLCONNECTION) {
+        do {
+          line = reader.readLine();
+          response.add(line);
+        } while (!(line.matches("\\d\\d\\d\\s.*")));
+      } else {
+        do {
+          line = reader.readLine();
+          if (line!=null)
             response.add(line);
-          } while (!(line.matches("\\d\\d\\d\\s.*")));
-        } else {
-          do {
-            line = reader.readLine();
-            if (line!=null)
-              response.add(line);
-          } while (line!=null);
-        }
-
-        if (!reader.ready()) {
-          break;
-        }
+        } while (line!=null);
       }
+
       // Create a string array and transfer arraylist's content to string array
       int listLength = response.size();
       if (listLength == 0) {
-        throw new IOException("Length of response size is 0");
+        throw new IOException("0xFFFF Processing error. Received response from server, but it's empty.");
       }
       String[] result = new String[listLength];
       int index = 0;
-      for (String line : response) {
-        result[index] = line;
+      for (String responseLine : response) {
+        result[index] = responseLine;
         index++;
       }
       return result;
     }catch (IOException e) {
-      e.printStackTrace(System.out);
       System.out.println(errorMessage);
       if (connectionType == ConnectionType.DATACONNECTION) {
         dataSocket.close();
       } else {
-        closeSockets();
+        closeAll();
         System.exit(1);
       }
       return null;
@@ -223,24 +221,31 @@ public class CSftp {
   }
 
   /*
-    Savefile
+    Read the content of the file in BINARY mode and save it.
   */
   public static void downloadAndSaveFile(String fileName) {
-      try {
-        int bytesRead = 0;
-        byte[] fileContent = new byte[65536];
-        BufferedInputStream binStream = new BufferedInputStream(dataSocket.getInputStream());
-        FileOutputStream ftpFile = new FileOutputStream(new File(fileName).getName());
-
-        while((bytesRead = binStream.read(fileContent, 0, 65536)) != -1) {
-          ftpFile.write(fileContent, 0, bytesRead);
+    int bytesRead = 0;
+    byte[] fileContent = new byte[65536];
+    try {
+      BufferedInputStream binStream = new BufferedInputStream(dataSocket.getInputStream());
+      FileOutputStream fOutputStream = new FileOutputStream(fileName);
+        try {
+          while((bytesRead = binStream.read(fileContent, 0, 65536)) != -1) {
+            try {
+              fOutputStream.write(fileContent, 0, bytesRead);
+            } catch(IOException e) {
+              System.out.println("0xFFFF Processing error. " + e.getMessage());
+            }
+          }
+          fOutputStream.close();
+          binStream.close();
+        } catch (IOException e) {
+          System.out.println("0x3A7 Data transfer connection I/O error, closing data connection.");
+          dataSocket.close();
         }
-        ftpFile.close();
-        binStream.close();
-      } catch (IOException e) {
-        System.out.println("0xFFFF Processing error. " + e.getMessage());
-      }
-
+    } catch (IOException e) {
+      System.out.println("0xFFFF Processing error. " + e.getMessage());
+    }
   }
 
 
@@ -252,9 +257,9 @@ public class CSftp {
       try {
         controlWriter.write(message + "\r\n");
         controlWriter.flush();
-      }catch (IOException e) {
+      } catch (IOException e) {
         System.out.println("0xFFFD Control connection I/O error, closing control connection");
-        closeSockets();
+        closeAll();
         System.exit(1);
       }
   }
@@ -271,7 +276,7 @@ public class CSftp {
       controlWriter = new BufferedWriter(new OutputStreamWriter(controlSocket.getOutputStream()));
       String response = read(ConnectionType.CONTROLCONNECTION)[0];
       System.out.println(response);
-      return response.length() > 2 && response.substring(0,3).equals("220");
+      return (response.length() > 2 && response.substring(0,1).equals("2"));
     } catch (Exception e) {
       System.out.println("0xFFFC Control connection to " + server + " on port " + port + " failed to open.");
       System.exit(1);
@@ -288,7 +293,7 @@ public class CSftp {
       dataSocket = new Socket(server, port);
       dataReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
     } catch (Exception e) {
-      System.out.println("0x3A2 Data transfer connection " + server + " on port " + port + " failed to open.");
+      System.out.println("0x3A2 Data transfer connection to " + server + " on port " + port + " failed to open.");
     }
   }
 
@@ -299,8 +304,8 @@ public class CSftp {
 
 	public static void main(String[] args) {
     // If no console arguments, exit
-    if (args.length ==  0) {
-      System.err.println("Insufficient command line arguments. Exiting ...");
+    if (args.length ==  0 || args.length > 2) {
+      System.out.println("0xFFFF Processing error. Insufficient or extra command line arguments. Exiting.");
       System.exit(1);
     } else {
       // First arg will be server address
@@ -311,13 +316,14 @@ public class CSftp {
         port = Integer.parseInt(args[1]);
       }
 
-      System.out.println("Trying to connect to server " + address + " at port " + port);
+      System.out.println("Trying to connect to server " + address + " on port " + port);
       try {
         // If any control connection error occurs of receives message other than 220, exit
         boolean connected = controlConnection(address, port);
         if (connected) {
           System.out.println("Successfully connected.");
         } else {
+          System.out.println("0xFFFC Control connection to " + address + " on port " + port + " failed to open.");
           System.exit(1);
         }
 
@@ -329,6 +335,9 @@ public class CSftp {
           String input = null;
           try {
               input = consoleReader.readLine();
+              if (input.equals("") || input.startsWith("#")) {
+                continue;
+              }
           } catch (IOException e) {
             System.out.println("0xFFFE Input error while reading commands, terminating.");
             System.exit(1);
@@ -338,11 +347,11 @@ public class CSftp {
           String[] splittedInput = input.split("\\s{1,}");
 
           if (splittedInput.length == 0) {
-            System.err.println("0x001 Invalid command.");
+            System.out.println("0x001 Invalid command.");
           } else {
             if (splittedInput.length > 2) {
               // We should have 1 command and may have at max 1 argument.
-              System.err.println("0x002 Incorrect number of arguments.");
+              System.out.println("0x002 Incorrect number of arguments.");
             } else {
               // splittedInput.length equals to 1 or 2
               String command = splittedInput[0];
@@ -354,7 +363,7 @@ public class CSftp {
               if (command.equals("quit") || command.equals("features") || command.equals("dir")) {
                 if (hasParam) {
                   // These commands shouldn't have a parameter
-                  System.err.println("0x002 Incorrect number of arguments.");
+                  System.out.println("0x002 Incorrect number of arguments.");
                   continue;
                 }
               }
@@ -362,7 +371,7 @@ public class CSftp {
                       command.equals("get") || command.equals("cd")) {
                 if (!hasParam) {
                   // These commands should have 1 parameter
-                  System.err.println("0x002 Incorrect number of arguments.");
+                  System.out.println("0x002 Incorrect number of arguments.");
                   continue;
                 }
               }
@@ -376,7 +385,7 @@ public class CSftp {
                 case "pw": pw(param); break;
                 case "get": get(param); break;
                 case "cd": cd(param); break;
-                default: System.err.println("0x001 Invalid command."); break;
+                default: System.out.println("0x001 Invalid command."); break;
               }
 
               if (command.equals("quit")) {
@@ -386,6 +395,7 @@ public class CSftp {
           }
         }
         consoleReader.close();
+        closeAll();
 
       } catch (Exception e) {
         e.printStackTrace(System.out);
