@@ -141,6 +141,8 @@ public class CSftp {
   public static void get(String remote) throws IOException {
     boolean success = passiveMode();
     if (success) {
+      // Switch to BINARY mode
+      communicate(ConnectionType.CONTROLCONNECTION, "TYPE I");
       String message = "RETR " + remote;
       System.out.println("--> " + message);
       write(message);
