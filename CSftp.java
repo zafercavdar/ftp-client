@@ -52,6 +52,7 @@ public class CSftp {
   /*
     This method sends commands to server, prints and returns the response.
   */
+  
   public static String[] communicate(ConnectionType readFrom, String message) throws IOException{
     System.out.println("--> " + message);
     write(message);
@@ -101,7 +102,6 @@ public class CSftp {
     }
   }
 
-
   //  Client commands
   public static void user(String username) throws IOException {
     String message = "USER " + username;
@@ -121,7 +121,6 @@ public class CSftp {
 
   public static void features() throws IOException {
     String message = "FEAT";
-    // TO DO: Fix stream bug
     communicate(ConnectionType.CONTROLCONNECTION, message);
   }
 
