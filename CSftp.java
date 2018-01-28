@@ -62,12 +62,7 @@ public class CSftp {
 
     if (readFrom == ConnectionType.DATACONNECTION) {
       String[] dataConnectionResponse = read(readFrom);
-      if (dataConnectionResponse!=null) {
-        printArray(dataConnectionResponse, "");
-      } else {
-        System.out.println("No files in this directory.");
-      }
-      
+      printArray(dataConnectionResponse, "");
       // read control connection once again to get final message
       controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
       printArray(controlConnectionResponse, "<-- ");
@@ -221,7 +216,8 @@ public class CSftp {
         closeAll();
         System.exit(1);
       }
-      return null;
+      String[] result = {};
+      return result;
     }
   }
 
