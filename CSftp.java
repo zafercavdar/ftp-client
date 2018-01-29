@@ -52,12 +52,11 @@ public class CSftp {
   /*
     This method sends commands to server, prints and returns the response.
   */
-
   public static String[] communicate(ConnectionType readFrom, String message) throws IOException{
+    // output prefix requirement
     System.out.println("--> " + message);
     write(message);
     String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
-
     printArray(controlConnectionResponse, "<-- ");
 
     if (readFrom == ConnectionType.DATACONNECTION) {
@@ -75,6 +74,8 @@ public class CSftp {
   public static boolean passiveMode() throws IOException {
     String message = "PASV ";
     String response = communicate(ConnectionType.CONTROLCONNECTION, message)[0];
+
+    // parse response into IP address and port used for data connection
     int s = response.indexOf("(") + 1;
     int f = response.indexOf(")");
     if (s != -1 && f != -1) {
@@ -146,6 +147,7 @@ public class CSftp {
       write(message);
       String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
       printArray(controlConnectionResponse, "<-- ");
+      // error handling if unable to access file
       if (controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,3).equals("550")) {
         System.out.println("0x38E Access to local file " + remote + " denied.");
       } else {
@@ -156,11 +158,9 @@ public class CSftp {
     }
   }
 
-
   /*
     This method reads from FTP server and exits if there is a I/O Error
   */
-
   public static String[] read(ConnectionType connectionType) throws IOException {
     BufferedReader reader = null;
     String errorMessage = "";
@@ -183,6 +183,9 @@ public class CSftp {
       ArrayList<String> response = new ArrayList<String>();
       String line = null;
 
+      // function to stop the reader when the full response has been received from server
+      // reader for ControlConnection stops when line is preceded by a 3 digit number and a space
+      // reader for DataConnection stops when a null line is detected
       if (connectionType==ConnectionType.CONTROLCONNECTION) {
         do {
           line = reader.readLine();
@@ -208,8 +211,10 @@ public class CSftp {
         index++;
       }
       return result;
+
     }catch (IOException e) {
       System.out.println(errorMessage);
+      // as per requirements, close dataSocket connection after response from dataSocket has been read
       if (connectionType == ConnectionType.DATACONNECTION) {
         dataSocket.close();
       } else {
@@ -227,11 +232,16 @@ public class CSftp {
   public static void downloadAndSaveFile(String fileName) {
     int bytesRead = 0;
     byte[] fileContent = new byte[65536];
+
     try {
+      // setup input and output streams to read and write bytes for downloaded files
       BufferedInputStream binStream = new BufferedInputStream(dataSocket.getInputStream());
       FileOutputStream fOutputStream = new FileOutputStream(fileName);
+
         try {
+          // read bytes from server file and write to a new file on the local machine
           while((bytesRead = binStream.read(fileContent, 0, 65536)) != -1) {
+
             try {
               fOutputStream.write(fileContent, 0, bytesRead);
             } catch(IOException e) {
@@ -249,13 +259,12 @@ public class CSftp {
     }
   }
 
-
   /*
     This method writes to FTP server and exits if there is a I/O Error
   */
-
   public static void write(String message) throws IOException {
       try {
+        // \r\n used to indicate end of command
         controlWriter.write(message + "\r\n");
         controlWriter.flush();
       } catch (IOException e) {
@@ -265,11 +274,9 @@ public class CSftp {
       }
   }
 
-
   /*
     This method creates Socket connection, controlReader, controlWriter and checks if the connection is successful or not.
   */
-
   public static boolean controlConnection(String server, int port) {
     try {
       controlSocket = new Socket(server, port);
@@ -288,7 +295,6 @@ public class CSftp {
   /*
     This method creates Socket connection, dataReader, dataWriter and checks if the connection is successful or not.
   */
-
   public static void dataConnection(String server, int port) {
     try {
       dataSocket = new Socket(server, port);
@@ -298,11 +304,9 @@ public class CSftp {
     }
   }
 
-
   /*
     Parse arguments, get user inputs and call corresponding method.
   */
-
 	public static void main(String[] args) {
     // If no console arguments, exit
     if (args.length ==  0 || args.length > 2) {
@@ -336,6 +340,7 @@ public class CSftp {
           String input = null;
           try {
               input = consoleReader.readLine();
+              // error handling for empty input or inputs starting with #
               if (input.equals("") || input.startsWith("#")) {
                 continue;
               }
