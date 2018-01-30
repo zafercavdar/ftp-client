@@ -41,7 +41,7 @@ public class CSftp {
     }
   }
 
-  // Print array with prefix
+  // Print array content with given prefix
   public static void printArray(String[] arr, String prefix) {
     for(int i = 0; i < arr.length; i++) {
       String line = arr[i];
@@ -50,7 +50,9 @@ public class CSftp {
   }
 
   /*
-    This method sends commands to server, prints and returns the response.
+    This method writes message to control connection.
+    If necessary, reads response from data connection and reads control connection once again.
+    Responses are printed.
   */
   public static String[] communicate(ConnectionType readFrom, String message) throws IOException{
     // output prefix requirement
