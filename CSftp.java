@@ -41,7 +41,7 @@ public class CSftp {
     }
   }
 
-  // Print array with prefix
+  // Print array content with given prefix
   public static void printArray(String[] arr, String prefix) {
     for(int i = 0; i < arr.length; i++) {
       String line = arr[i];
@@ -50,7 +50,9 @@ public class CSftp {
   }
 
   /*
-    This method sends commands to server, prints and returns the response.
+    This method writes message to control connection.
+    If necessary, reads response from data connection and reads control connection once again.
+    Responses are printed.
   */
   public static String[] communicate(ConnectionType readFrom, String message) throws IOException{
     // output prefix requirement
@@ -94,10 +96,13 @@ public class CSftp {
           port += Integer.parseInt(octatList[i]);
         }
       }
-      dataConnection(IPAddress, port);
+      try {
+        dataConnection(IPAddress, port);
+      } catch (Exception e) {
+        return false;
+      }
       return true;
     } else {
-      System.out.println("0xFFFF Processing error. Passive mode failed. Response does not contain IP address.");
       return false;
     }
   }
@@ -137,6 +142,11 @@ public class CSftp {
     communicate(ConnectionType.CONTROLCONNECTION, message);
   }
 
+
+  /*
+    First, open passive mode, then send TYPE I binary mode signal
+    Then request for the file
+  */
   public static void get(String remote) throws IOException {
     boolean success = passiveMode();
     if (success) {
@@ -148,9 +158,7 @@ public class CSftp {
       String[] controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
       printArray(controlConnectionResponse, "<-- ");
       // error handling if unable to access file
-      if (controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,3).equals("550")) {
-        System.out.println("0x38E Access to local file " + remote + " denied.");
-      } else {
+      if (!(controlConnectionResponse.length > 0 && controlConnectionResponse[0].substring(0,3).equals("550"))) {
         downloadAndSaveFile(remote);
         controlConnectionResponse = read(ConnectionType.CONTROLCONNECTION);
         printArray(controlConnectionResponse, "<-- ");
@@ -159,7 +167,8 @@ public class CSftp {
   }
 
   /*
-    This method reads from FTP server and exits if there is a I/O Error
+    This method reads response from control connection or data connection and returns
+    a list of lines read
   */
   public static String[] read(ConnectionType connectionType) throws IOException {
     BufferedReader reader = null;
@@ -201,9 +210,6 @@ public class CSftp {
 
       // Create a string array and transfer arraylist's content to string array
       int listLength = response.size();
-      if (listLength == 0) {
-        throw new IOException("0xFFFF Processing error. Received response from server, but it's empty.");
-      }
       String[] result = new String[listLength];
       int index = 0;
       for (String responseLine : response) {
@@ -221,8 +227,7 @@ public class CSftp {
         closeAll();
         System.exit(1);
       }
-      String[] result = {};
-      return result;
+      return new String[0];
     }
   }
 
@@ -231,7 +236,7 @@ public class CSftp {
   */
   public static void downloadAndSaveFile(String fileName) {
     int bytesRead = 0;
-    byte[] fileContent = new byte[65536];
+    byte[] fileContent = new byte[4096];
 
     try {
       // setup input and output streams to read and write bytes for downloaded files
@@ -240,12 +245,12 @@ public class CSftp {
 
         try {
           // read bytes from server file and write to a new file on the local machine
-          while((bytesRead = binStream.read(fileContent, 0, 65536)) != -1) {
+          while((bytesRead = binStream.read(fileContent, 0, 4096)) != -1) {
 
             try {
               fOutputStream.write(fileContent, 0, bytesRead);
             } catch(IOException e) {
-              System.out.println("0xFFFF Processing error. " + e.getMessage());
+              System.out.println("0x38E Access to local file "+ fileName + " denied.");
             }
           }
           fOutputStream.close();
@@ -255,12 +260,12 @@ public class CSftp {
           dataSocket.close();
         }
     } catch (IOException e) {
-      System.out.println("0xFFFF Processing error. " + e.getMessage());
+      System.out.println("0x38E Access to local file "+ fileName + " denied.");
     }
   }
 
   /*
-    This method writes to FTP server and exits if there is a I/O Error
+    This method writes to control connection and exits if there is a I/O Error
   */
   public static void write(String message) throws IOException {
       try {
@@ -283,7 +288,7 @@ public class CSftp {
       controlReader = new BufferedReader(new InputStreamReader(controlSocket.getInputStream()));
       controlWriter = new BufferedWriter(new OutputStreamWriter(controlSocket.getOutputStream()));
       String response = read(ConnectionType.CONTROLCONNECTION)[0];
-      System.out.println(response);
+      System.out.println("<-- "+ response);
       return (response.length() > 2 && response.substring(0,1).equals("2"));
     } catch (Exception e) {
       System.out.println("0xFFFC Control connection to " + server + " on port " + port + " failed to open.");
@@ -293,7 +298,7 @@ public class CSftp {
   }
 
   /*
-    This method creates Socket connection, dataReader, dataWriter and checks if the connection is successful or not.
+    This method creates Socket connection, dataReader and checks if the connection is successful or not.
   */
   public static void dataConnection(String server, int port) {
     try {
@@ -321,13 +326,10 @@ public class CSftp {
         port = Integer.parseInt(args[1]);
       }
 
-      System.out.println("Trying to connect to server " + address + " on port " + port);
       try {
         // If any control connection error occurs of receives message other than 220, exit
         boolean connected = controlConnection(address, port);
-        if (connected) {
-          System.out.println("Successfully connected.");
-        } else {
+        if (!connected) {
           System.out.println("0xFFFC Control connection to " + address + " on port " + port + " failed to open.");
           System.exit(1);
         }
